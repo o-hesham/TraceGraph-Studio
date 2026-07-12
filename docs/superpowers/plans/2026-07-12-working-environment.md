@@ -67,10 +67,11 @@ TraceGraph Studio/
 Create `.gitignore`:
 
 ```gitignore
+/.worktrees/
 /build/
 ```
 
-Why: CMake and Ninja generate machine-specific files. Git should contain sources and configuration, not generated output.
+Why: local worktrees and CMake/Ninja output are machine-specific. Git should contain sources and configuration, not isolated checkouts or generated output.
 
 - [ ] **Step 2: Create the project-wide CMake configuration**
 
