@@ -1,0 +1,84 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Configure TraceGraph Studio",
+            "type": "shell",
+            "command": "D:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
+            "args": [
+                "-S",
+                "${workspaceFolder}",
+                "-B",
+                "${workspaceFolder}\\build",
+                "-G",
+                "Ninja",
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+                "-DCMAKE_PREFIX_PATH=D:/Qt/6.11.1/mingw_64",
+                "-DCMAKE_MAKE_PROGRAM=D:/Qt/Tools/Ninja/ninja.exe"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "D:\\Qt\\6.11.1\\mingw_64\\bin;D:\\Qt\\Tools\\mingw1310_64\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build TraceGraph Studio",
+            "type": "shell",
+            "command": "D:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
+            "args": [
+                "--build",
+                "${workspaceFolder}\\build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "D:\\Qt\\6.11.1\\mingw_64\\bin;D:\\Qt\\Tools\\mingw1310_64\\bin;${env:PATH}"
+                }
+            },
+            "dependsOn": "Configure TraceGraph Studio",
+            "dependsOrder": "sequence",
+            "problemMatcher": "$gcc",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Deploy TraceGraph Studio",
+            "type": "shell",
+            "command": "D:\\Qt\\6.11.1\\mingw_64\\bin\\windeployqt.exe",
+            "args": [
+                "--release",
+                "--compiler-runtime",
+                "--force",
+                "--qtpaths",
+                "D:\\Qt\\6.11.1\\mingw_64\\bin\\qtpaths.exe",
+                "${workspaceFolder}\\build\\bin\\tracegraph-studio.exe"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "D:\\Qt\\6.11.1\\mingw_64\\bin;D:\\Qt\\Tools\\mingw1310_64\\bin;${env:PATH}"
+                }
+            },
+            "dependsOn": "Build TraceGraph Studio",
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run TraceGraph Studio",
+            "type": "shell",
+            "command": "${workspaceFolder}\\build\\bin\\tracegraph-studio.exe",
+            "options": {
+                "cwd": "${workspaceFolder}\\build\\bin"
+            },
+            "dependsOn": "Deploy TraceGraph Studio",
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        }
+    ]
+}
