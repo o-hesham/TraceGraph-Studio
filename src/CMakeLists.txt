@@ -1,5 +1,13 @@
+file(GLOB_RECURSE TRACEGRAPH_APP_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+)
+
+list(REMOVE_ITEM TRACEGRAPH_APP_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
+)
+
 qt_add_library(tracegraph_app STATIC
-    app/main_window.cpp
+    ${TRACEGRAPH_APP_SOURCES}
 )
 
 target_include_directories(tracegraph_app

@@ -2,12 +2,13 @@
 
 #include <QMainWindow>
 
-namespace tracegraph::app {
-
-class MainWindow final : public QMainWindow
+namespace tracegraph::app
 {
-public:
-    explicit MainWindow(QWidget *parent = nullptr);
-};
+
+    class MainWindow final : public QMainWindow
+    {
+    public:
+        explicit MainWindow(QWidget *parent = nullptr);
+    };
 
 } // namespace tracegraph::app
