@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "timeUnit": "microseconds",
+  "events": [
+    {
+      "id": 1,
+      "name": "Load Trace",
+      "category": "loading",
+      "thread": "main",
+      "start": 0,
+      "duration": 500
+    },
+    {
+      "id": 2,
+      "name": "Read File",
+      "category": "io",
+      "thread": "worker-1",
+      "start": 10,
+      "duration": 90,
+      "parentId": 1
+    },
+    {
+      "id": 3,
+      "name": "Parse JSON",
+      "category": "parsing",
+      "thread": "worker-1",
+      "start": 100,
+      "duration": 250,
+      "parentId": 1,
+      "dependsOn": [2]
+    }
+  ]
+}
