@@ -19,6 +19,7 @@ namespace tracegraph::io
 
     namespace
     {
+
         enum class VisitState
         {
             Unvisited,

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "timeUnit": "microseconds",
+  "events": [
+    {
+      "id": 1,
+      "name": "Broken Event",
+      "category": "validation",
+      "thread": "main",
+      "start": 0,
+      "duration": 10,
+      "dependsOn": [999]
+    }
+  ]
+}
