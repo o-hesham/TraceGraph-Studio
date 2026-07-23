@@ -9,6 +9,7 @@
 #include <QStatusBar>
 #include <QLabel>
 #include <QTableView>
+#include <QHeaderView>
 
 namespace tracegraph::app
 {
@@ -30,6 +31,12 @@ namespace tracegraph::app
         eventTableView_ = new QTableView(this);
         eventTableView_->setModel(eventTableModel_);
 
+        eventTableView_->setSelectionBehavior(QAbstractItemView::SelectRows);
+        eventTableView_->setSelectionMode(QAbstractItemView::SingleSelection);
+        eventTableView_->setAlternatingRowColors(true);
+
+        eventTableView_->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+        eventTableView_->horizontalHeader()->setSectionResizeMode(EventTableModel::NameColumn, QHeaderView::Stretch);
         setCentralWidget(eventTableView_);
 
         sessionStatusLabel_ = new QLabel(QStringLiteral("No trace loaded"), statusBar());

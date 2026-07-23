@@ -22,7 +22,6 @@ namespace tracegraph::app
         [[nodiscard]] QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
         [[nodiscard]] QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 
-    private:
         enum Column
         {
             IdColumn,
@@ -34,6 +33,7 @@ namespace tracegraph::app
             ColumnCount
         };
 
+    private:
         const domain::TraceSession *session_ = nullptr;
     };
 
