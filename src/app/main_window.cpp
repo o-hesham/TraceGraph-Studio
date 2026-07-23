@@ -1,5 +1,6 @@
 #include "app/main_window.h"
 #include "app/load_controller.h"
+#include "app/event_table_model.h"
 
 #include <QAction>
 #include <QKeySequence>
@@ -7,6 +8,7 @@
 #include <QMenuBar>
 #include <QStatusBar>
 #include <QLabel>
+#include <QTableView>
 
 namespace tracegraph::app
 {
@@ -19,10 +21,16 @@ namespace tracegraph::app
         QMenu *fileMenu = menuBar()->addMenu(QStringLiteral("&File"));
 
         QAction *openAction = fileMenu->addAction(QStringLiteral("&Open..."));
-
         openAction->setShortcuts(QKeySequence::Open);
 
         loadController_ = new LoadController(this, this);
+
+        eventTableModel_ = new EventTableModel(this);
+
+        eventTableView_ = new QTableView(this);
+        eventTableView_->setModel(eventTableModel_);
+
+        setCentralWidget(eventTableView_);
 
         sessionStatusLabel_ = new QLabel(QStringLiteral("No trace loaded"), statusBar());
         statusBar()->addPermanentWidget(sessionStatusLabel_);
@@ -35,6 +43,8 @@ namespace tracegraph::app
                     {
                         return;
                     }
+
+                    eventTableModel_->setSession(session);
 
                     sessionStatusLabel_->setText(QStringLiteral("Loaded %1 events.").arg(session->events().size()));
                 });
