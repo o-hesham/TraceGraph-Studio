@@ -4,12 +4,14 @@
 
 class QLabel;
 class QTableView;
+class QLineEdit;
 
 namespace tracegraph::app
 {
 
     class LoadController;
     class EventTableModel;
+    class EventFilterProxyModel;
 
     class MainWindow final : public QMainWindow
     {
@@ -21,6 +23,8 @@ namespace tracegraph::app
         QLabel *sessionStatusLabel_ = nullptr;
         EventTableModel *eventTableModel_ = nullptr;
         QTableView *eventTableView_ = nullptr;
+        EventFilterProxyModel *eventFilterProxyModel_ = nullptr;
+        QLineEdit *filterLineEdit_ = nullptr;
     };
 
 } // namespace tracegraph::app

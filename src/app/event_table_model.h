@@ -33,6 +33,11 @@ namespace tracegraph::app
             ColumnCount
         };
 
+        enum Role
+        {
+            EventIdRole = Qt::UserRole + 1
+        };
+
     private:
         const domain::TraceSession *session_ = nullptr;
     };

@@ -41,7 +41,7 @@ namespace tracegraph::app
 
     QVariant EventTableModel::data(const QModelIndex &index, int role) const
     {
-        if (!index.isValid() || session_ == nullptr || role != Qt::DisplayRole)
+        if (!index.isValid() || session_ == nullptr)
         {
             return {};
         }
@@ -54,6 +54,16 @@ namespace tracegraph::app
         }
 
         const domain::TraceEvent &event = session_->events().at(row);
+
+        if (role == EventIdRole)
+        {
+            return event.id;
+        }
+
+        if (role != Qt::DisplayRole)
+        {
+            return {};
+        }
 
         switch (index.column())
         {
