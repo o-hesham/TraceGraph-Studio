@@ -3,6 +3,8 @@
 
 #include <QPainter>
 #include <QPaintEvent>
+#include <QResizeEvent>
+#include <QScrollBar>
 
 namespace
 {
@@ -47,6 +49,7 @@ namespace tracegraph::app
 
         session_ = session;
         rebuildTimelineMetadata();
+        updateVerticalScrollBar();
         viewport()->update();
     }
 
@@ -137,9 +140,15 @@ namespace tracegraph::app
         // Draw one row for each thread.
         const int threadCount = static_cast<int>(threadNames_.size());
 
+        const int verticalOffset = verticalScrollBar()->value();
+
+        painter.save();
+
+        painter.setClipRect(QRect(0, HeaderHeight, viewportRect.width(), qMax(0, viewportRect.height() - HeaderHeight)));
+
         for (int lane = 0; lane < threadCount; ++lane)
         {
-            const int laneTop = HeaderHeight + lane * LaneHeight;
+            const int laneTop = HeaderHeight + lane * LaneHeight - verticalOffset;
 
             const QRect laneRect(0, laneTop, viewportRect.width(), LaneHeight);
 
@@ -157,7 +166,8 @@ namespace tracegraph::app
             painter.drawText(QRect(Padding, laneTop, ThreadLabelWidth - Padding, LaneHeight), Qt::AlignLeft | Qt::AlignVCenter, threadNames_.at(lane));
         }
 
-        // Draw each event in its thread lane.
+        painter.restore();
+
         painter.save();
 
         painter.setClipRect(QRectF(plotLeft, HeaderHeight, plotWidth, threadCount * LaneHeight));
@@ -184,7 +194,7 @@ namespace tracegraph::app
 
             const qreal eventWidth = qMax(MinimumEventWidth, eventRight - eventLeft);
 
-            const qreal eventTop = HeaderHeight + lane * LaneHeight + EventVerticalPadding;
+            const qreal eventTop = HeaderHeight + lane * LaneHeight + EventVerticalPadding - verticalOffset;
             const QRectF eventRect(eventLeft, eventTop, eventWidth, LaneHeight - 2 * EventVerticalPadding);
 
             QColor fillColor = palette().highlight().color();
@@ -212,6 +222,26 @@ namespace tracegraph::app
         painter.setPen(palette().mid().color());
 
         painter.drawLine(ThreadLabelWidth, 0, ThreadLabelWidth, viewportRect.bottom());
+    }
+
+    void TimelineView::resizeEvent(QResizeEvent *event)
+    {
+        QAbstractScrollArea::resizeEvent(event);
+        updateVerticalScrollBar();
+    }
+
+    void TimelineView::updateVerticalScrollBar()
+    {
+        const int contentHeight = static_cast<int>(threadNames_.size()) * LaneHeight;
+
+        const int visibleHeight = qMax(0, viewport()->height() - HeaderHeight);
+
+        QScrollBar *scrollBar = verticalScrollBar();
+
+        scrollBar->setRange(0, qMax(0, contentHeight - visibleHeight));
+
+        scrollBar->setPageStep(visibleHeight);
+        scrollBar->setSingleStep(LaneHeight);
     }
 
 } // namespace tracegraph::app

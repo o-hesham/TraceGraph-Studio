@@ -4,6 +4,8 @@
 #include <QHash>
 #include <QStringList>
 
+class QResizeEvent;
+
 namespace tracegraph::domain
 {
     class TraceSession;
@@ -21,12 +23,14 @@ namespace tracegraph::app
 
     protected:
         void paintEvent(QPaintEvent *event) override;
+        void resizeEvent(QResizeEvent *event) override;
 
     private:
         // Recomputes thread lanes and time bounds for a new session.
         void rebuildTimelineMetadata();
 
         // Updates vertical scrolling when the session or viewport size changes.
+        void updateVerticalScrollBar();
 
         const domain::TraceSession *session_ = nullptr;
 

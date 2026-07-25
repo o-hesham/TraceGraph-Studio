@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "timeUnit": "microseconds",
+  "events": [
+    {"id": 1, "name": "Work 1", "category": "work", "thread": "worker-1", "start": 0, "duration": 80},
+    {"id": 2, "name": "Work 2", "category": "work", "thread": "worker-2", "start": 100, "duration": 80},
+    {"id": 3, "name": "Work 3", "category": "work", "thread": "worker-3", "start": 200, "duration": 80},
+    {"id": 4, "name": "Work 4", "category": "work", "thread": "worker-4", "start": 300, "duration": 80},
+    {"id": 5, "name": "Work 5", "category": "work", "thread": "worker-5", "start": 400, "duration": 80},
+    {"id": 6, "name": "Work 6", "category": "work", "thread": "worker-6", "start": 500, "duration": 80},
+    {"id": 7, "name": "Work 7", "category": "work", "thread": "worker-7", "start": 600, "duration": 80},
+    {"id": 8, "name": "Work 8", "category": "work", "thread": "worker-8", "start": 700, "duration": 80}
+  ]
+}
