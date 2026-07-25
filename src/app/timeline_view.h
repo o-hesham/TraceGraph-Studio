@@ -5,6 +5,7 @@
 #include <QStringList>
 
 class QResizeEvent;
+class QWheelEvent;
 
 namespace tracegraph::domain
 {
@@ -24,6 +25,7 @@ namespace tracegraph::app
     protected:
         void paintEvent(QPaintEvent *event) override;
         void resizeEvent(QResizeEvent *event) override;
+        void wheelEvent(QWheelEvent *event) override;
 
     private:
         // Recomputes thread lanes and time bounds for a new session.
@@ -31,6 +33,8 @@ namespace tracegraph::app
 
         // Updates vertical scrolling when the session or viewport size changes.
         void updateVerticalScrollBar();
+        // Updates horizontal  scrolling for the current zoom level.
+        void updateHorizontalScrollBar();
 
         const domain::TraceSession *session_ = nullptr;
 
@@ -39,6 +43,8 @@ namespace tracegraph::app
 
         quint64 timelineStartMicroseconds_ = 0;
         quint64 timelineEndMicroseconds_ = 0;
+
+        qreal zoomFactor_ = 1.0;
     };
 
 } // namespace tracegraph::app
