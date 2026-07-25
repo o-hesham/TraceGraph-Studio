@@ -2,6 +2,7 @@
 #include "app/load_controller.h"
 #include "app/event_table_model.h"
 #include "app/event_filter_proxy_model.h"
+#include "app/timeline_view.h"
 
 #include <QAction>
 #include <QKeySequence>
@@ -14,6 +15,7 @@
 #include <QLineEdit>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <QSplitter>
 
 namespace tracegraph::app
 {
@@ -54,8 +56,19 @@ namespace tracegraph::app
         eventTableView_->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
         eventTableView_->horizontalHeader()->setSectionResizeMode(EventTableModel::NameColumn, QHeaderView::Stretch);
 
+        contentSplitter_ = new QSplitter(Qt::Vertical, centralWidget);
+
+        timelineView_ = new TimelineView;
+
+        contentSplitter_->addWidget(eventTableView_);
+        contentSplitter_->addWidget(timelineView_);
+
+        contentSplitter_->setChildrenCollapsible(false);
+        contentSplitter_->setStretchFactor(0, 1);
+        contentSplitter_->setStretchFactor(1, 1);
+
         centralLayout->addWidget(filterLineEdit_);
-        centralLayout->addWidget(eventTableView_);
+        centralLayout->addWidget(contentSplitter_);
 
         setCentralWidget(centralWidget);
 
@@ -72,6 +85,7 @@ namespace tracegraph::app
                     }
 
                     eventTableModel_->setSession(session);
+                    timelineView_->setSession(session);
 
                     sessionStatusLabel_->setText(QStringLiteral("Loaded %1 events.").arg(session->events().size()));
                 });

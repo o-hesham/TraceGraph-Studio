@@ -5,6 +5,7 @@
 class QLabel;
 class QTableView;
 class QLineEdit;
+class QSplitter;
 
 namespace tracegraph::app
 {
@@ -12,6 +13,7 @@ namespace tracegraph::app
     class LoadController;
     class EventTableModel;
     class EventFilterProxyModel;
+    class TimelineView;
 
     class MainWindow final : public QMainWindow
     {
@@ -21,10 +23,15 @@ namespace tracegraph::app
     private:
         LoadController *loadController_ = nullptr;
         QLabel *sessionStatusLabel_ = nullptr;
+
         EventTableModel *eventTableModel_ = nullptr;
         QTableView *eventTableView_ = nullptr;
+
         EventFilterProxyModel *eventFilterProxyModel_ = nullptr;
         QLineEdit *filterLineEdit_ = nullptr;
+
+        QSplitter *contentSplitter_ = nullptr;
+        TimelineView *timelineView_ = nullptr;
     };
 
 } // namespace tracegraph::app
