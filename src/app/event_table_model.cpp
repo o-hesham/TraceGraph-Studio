@@ -9,11 +9,6 @@ namespace tracegraph::app
 
     void EventTableModel::setSession(const domain::TraceSession *session)
     {
-        if (session_ == session)
-        {
-            return;
-        }
-
         beginResetModel();
         session_ = session;
         endResetModel();

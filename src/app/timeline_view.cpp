@@ -5,6 +5,10 @@
 #include <QPaintEvent>
 #include <QResizeEvent>
 #include <QScrollBar>
+#include <QRectF>
+#include <QPointF>
+#include <QMouseEvent>
+#include <QPen>
 
 namespace
 {
@@ -60,11 +64,6 @@ namespace tracegraph::app
 
     void TimelineView::setSession(const domain::TraceSession *session)
     {
-        if (session_ == session)
-        {
-            return;
-        }
-
         session_ = session;
 
         zoomFactor_ = 1.0;
@@ -73,6 +72,23 @@ namespace tracegraph::app
         rebuildTimelineMetadata();
         updateVerticalScrollBar();
         updateHorizontalScrollBar();
+        selectedEventId_.reset();
+        viewport()->update();
+    }
+
+    void TimelineView::setSelectedEventId(std::optional<domain::EventId> eventId)
+    {
+        if (eventId.has_value() && (session_ == nullptr || session_->eventById(*eventId) == nullptr))
+        {
+            eventId.reset();
+        }
+
+        if (selectedEventId_ == eventId)
+        {
+            return;
+        }
+
+        selectedEventId_ = eventId;
         viewport()->update();
     }
 
@@ -116,6 +132,104 @@ namespace tracegraph::app
                 timelineEndMicroseconds_ = qMax(timelineEndMicroseconds_, end);
             }
         }
+    }
+
+    QRectF TimelineView::eventRectangle(const domain::TraceEvent &traceEvent, qreal contentOriginX, qreal contentPlotWidth, int verticalOffset) const
+    {
+        const auto laneIterator = laneByThread_.constFind(traceEvent.thread);
+
+        if (laneIterator == laneByThread_.cend())
+        {
+            return {};
+        }
+
+        const int lane = laneIterator.value();
+
+        const quint64 eventStart = static_cast<quint64>(traceEvent.startMicroseconds);
+        const quint64 eventEnd = eventStart + static_cast<quint64>(traceEvent.durationMicroseconds);
+
+        const qreal eventLeft = traceTimeToX(eventStart, timelineStartMicroseconds_, timelineEndMicroseconds_, contentOriginX, contentPlotWidth);
+        const qreal eventRight = traceTimeToX(eventEnd, timelineStartMicroseconds_, timelineEndMicroseconds_, contentOriginX, contentPlotWidth);
+
+        const qreal eventWidth = qMax(MinimumEventWidth, eventRight - eventLeft);
+        const qreal eventTop = HeaderHeight + lane * LaneHeight + EventVerticalPadding - verticalOffset;
+
+        return QRectF(eventLeft, eventTop, eventWidth, LaneHeight - 2 * EventVerticalPadding);
+    }
+
+    const domain::TraceEvent *TimelineView::eventAtPosition(const QPointF &position) const
+    {
+        if (session_ == nullptr || session_->events().isEmpty() || position.y() < HeaderHeight)
+        {
+            return nullptr;
+        }
+
+        const QRect viewportRect = viewport()->rect();
+
+        const int plotLeft = ThreadLabelWidth + Padding;
+        const int plotRight = qMax(plotLeft, viewportRect.right() - Padding);
+        const int visiblePlotWidth = qMax(1, plotRight - plotLeft);
+
+        if (position.x() < plotLeft || position.x() > plotRight)
+        {
+            return nullptr;
+        }
+
+        const qreal contentPlotWidth = visiblePlotWidth * zoomFactor_;
+        const qreal contentOriginX = plotLeft - horizontalScrollBar()->value();
+        const int verticalOffset = verticalScrollBar()->value();
+
+        const QVector<domain::TraceEvent> &events = session_->events();
+
+        // Search backward because later-painted events appear on top.
+        for (qsizetype index = events.size(); index > 0; --index)
+        {
+            const domain::TraceEvent &traceEvent = events.at(index - 1);
+
+            const QRectF eventRect = eventRectangle(traceEvent, contentOriginX, contentPlotWidth, verticalOffset);
+
+            if (eventRect.isValid() && eventRect.contains(position))
+            {
+                return &traceEvent;
+            }
+        }
+
+        return nullptr;
+    }
+
+    void TimelineView::mousePressEvent(QMouseEvent *event)
+    {
+        if (event->button() != Qt::LeftButton)
+        {
+            QAbstractScrollArea::mousePressEvent(event);
+            return;
+        }
+
+        const domain::TraceEvent *clickedEvent = eventAtPosition(event->position());
+
+        std::optional<domain::EventId> newSelection;
+
+        if (clickedEvent != nullptr)
+        {
+            newSelection = clickedEvent->id;
+        }
+
+        if (newSelection != selectedEventId_)
+        {
+            selectedEventId_ = newSelection;
+            viewport()->update();
+
+            if (selectedEventId_.has_value())
+            {
+                emit eventSelected(*selectedEventId_);
+            }
+            else
+            {
+                emit selectionCleared();
+            }
+        }
+
+        event->accept();
     }
 
     void TimelineView::paintEvent(QPaintEvent *event)
@@ -208,33 +322,22 @@ namespace tracegraph::app
         for (const domain::TraceEvent &traceEvent :
              session_->events())
         {
-            const auto laneIterator = laneByThread_.constFind(traceEvent.thread);
+            const QRectF eventRect = eventRectangle(traceEvent, contentOriginX, contentPlotWidth, verticalOffset);
 
-            if (laneIterator == laneByThread_.cend())
+            if (!eventRect.isValid())
             {
                 continue;
             }
 
-            const int lane = laneIterator.value();
-
-            const quint64 eventStart = static_cast<quint64>(traceEvent.startMicroseconds);
-
-            const quint64 eventEnd = eventStart + static_cast<quint64>(traceEvent.durationMicroseconds);
-
-            const qreal eventLeft = traceTimeToX(eventStart, timelineStartMicroseconds_, timelineEndMicroseconds_, contentOriginX, contentPlotWidth);
-
-            const qreal eventRight = traceTimeToX(eventEnd, timelineStartMicroseconds_, timelineEndMicroseconds_, contentOriginX, contentPlotWidth);
-
-            const qreal eventWidth = qMax(MinimumEventWidth, eventRight - eventLeft);
-
-            const qreal eventTop = HeaderHeight + lane * LaneHeight + EventVerticalPadding - verticalOffset;
-            const QRectF eventRect(eventLeft, eventTop, eventWidth, LaneHeight - 2 * EventVerticalPadding);
+            const bool isSelected = selectedEventId_.has_value() && selectedEventId_.value() == traceEvent.id;
 
             QColor fillColor = palette().highlight().color();
+            fillColor.setAlpha(isSelected ? 255 : 200);
 
-            fillColor.setAlpha(200);
+            QPen outlinePen(isSelected ? palette().highlightedText().color() : fillColor.lighter(120));
+            outlinePen.setWidthF(isSelected ? 2.0 : 1.0);
 
-            painter.setPen(fillColor.lighter(120));
+            painter.setPen(outlinePen);
             painter.setBrush(fillColor);
 
             painter.drawRoundedRect(eventRect, 3.0, 3.0);
