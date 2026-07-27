@@ -14,6 +14,7 @@ namespace tracegraph::app
     class EventTableModel;
     class EventFilterProxyModel;
     class TimelineView;
+    class SelectionController;
 
     class MainWindow final : public QMainWindow
     {
@@ -28,10 +29,13 @@ namespace tracegraph::app
         QTableView *eventTableView_ = nullptr;
 
         EventFilterProxyModel *eventFilterProxyModel_ = nullptr;
-        QLineEdit *filterLineEdit_ = nullptr;
 
+        QLineEdit *filterLineEdit_ = nullptr;
         QSplitter *contentSplitter_ = nullptr;
+
         TimelineView *timelineView_ = nullptr;
+
+        SelectionController *selectionController_ = nullptr;
     };
 
 } // namespace tracegraph::app

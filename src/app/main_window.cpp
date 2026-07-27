@@ -3,6 +3,7 @@
 #include "app/event_table_model.h"
 #include "app/event_filter_proxy_model.h"
 #include "app/timeline_view.h"
+#include "app/selection_controller.h"
 
 #include <optional>
 
@@ -35,6 +36,8 @@ namespace tracegraph::app
         openAction->setShortcuts(QKeySequence::Open);
 
         loadController_ = new LoadController(this, this);
+
+        selectionController_ = new SelectionController(this);
 
         eventTableModel_ = new EventTableModel(this);
 
@@ -88,19 +91,46 @@ namespace tracegraph::app
                         return;
                     }
 
+                    selectionController_->clearSelection();
                     eventTableModel_->setSession(session);
                     timelineView_->setSession(session);
 
                     sessionStatusLabel_->setText(QStringLiteral("Loaded %1 events.").arg(session->events().size()));
                 });
         connect(filterLineEdit_, &QLineEdit::textChanged, eventFilterProxyModel_, &QSortFilterProxyModel::setFilterFixedString);
-        connect(timelineView_, &TimelineView::eventSelected, this,
-                [this](domain::EventId eventId)
+        connect(eventTableView_->selectionModel(), &QItemSelectionModel::selectionChanged, this,
+                [this](const QItemSelection &, const QItemSelection &)
                 {
+                    const QModelIndexList selectedRows = eventTableView_->selectionModel()->selectedRows(
+                        EventTableModel::IdColumn);
+
+                    if (selectedRows.isEmpty())
+                    {
+                        selectionController_->clearSelection();
+                        return;
+                    }
+
+                    const domain::EventId eventId = selectedRows.first().data(EventTableModel::EventIdRole).toLongLong();
+
+                    selectionController_->selectEvent(eventId);
+                });
+        connect(timelineView_, &TimelineView::eventSelected, selectionController_, &SelectionController::selectEvent);
+        connect(timelineView_, &TimelineView::selectionCleared, selectionController_, &SelectionController::clearSelection);
+        connect(selectionController_, &SelectionController::selectedEventIdChanged, timelineView_, &TimelineView::setSelectedEventId);
+        connect(selectionController_, &SelectionController::selectedEventIdChanged, this,
+                [this](std::optional<domain::EventId> selectedEventId)
+                {
+                    if (!selectedEventId.has_value())
+                    {
+                        eventTableView_->clearSelection();
+                        return;
+                    }
+
                     const QModelIndexList sourceMatches = eventTableModel_->match(
-                        eventTableModel_->index(0, EventTableModel::IdColumn),
+                        eventTableModel_->index(
+                            0, EventTableModel::IdColumn),
                         EventTableModel::EventIdRole,
-                        QVariant::fromValue(eventId),
+                        QVariant::fromValue(*selectedEventId),
                         1,
                         Qt::MatchExactly);
 
@@ -111,6 +141,7 @@ namespace tracegraph::app
                     }
 
                     const QModelIndex proxyIndex = eventFilterProxyModel_->mapFromSource(sourceMatches.first());
+
                     if (!proxyIndex.isValid())
                     {
                         eventTableView_->clearSelection();
@@ -119,23 +150,6 @@ namespace tracegraph::app
 
                     eventTableView_->selectRow(proxyIndex.row());
                     eventTableView_->scrollTo(proxyIndex);
-                });
-        connect(timelineView_, &TimelineView::selectionCleared, eventTableView_, &QTableView::clearSelection);
-        connect(eventTableView_->selectionModel(), &QItemSelectionModel::selectionChanged, this,
-                [this](const QItemSelection &, const QItemSelection &)
-                {
-                    const QModelIndexList selectedRows = eventTableView_->selectionModel()->selectedRows(
-                        EventTableModel::IdColumn);
-
-                    if (selectedRows.isEmpty())
-                    {
-                        timelineView_->setSelectedEventId(std::nullopt);
-                        return;
-                    }
-
-                    const domain::EventId eventId = selectedRows.first().data(EventTableModel::EventIdRole).toLongLong();
-
-                    timelineView_->setSelectedEventId(eventId);
                 });
 
         openAction->setEnabled(true);
