@@ -4,6 +4,7 @@
 #include "app/event_filter_proxy_model.h"
 #include "app/timeline_view.h"
 #include "app/selection_controller.h"
+#include "app/event_inspector_widget.h"
 
 #include <optional>
 
@@ -21,6 +22,7 @@
 #include <QSplitter>
 #include <QVariant>
 #include <QItemSelectionModel>
+#include <QDockWidget>
 
 namespace tracegraph::app
 {
@@ -31,6 +33,8 @@ namespace tracegraph::app
         setWindowTitle(QStringLiteral("TraceGraph Studio"));
 
         QMenu *fileMenu = menuBar()->addMenu(QStringLiteral("&File"));
+
+        QMenu *viewMenu = menuBar()->addMenu(QStringLiteral("&View"));
 
         QAction *openAction = fileMenu->addAction(QStringLiteral("&Open..."));
         openAction->setShortcuts(QKeySequence::Open);
@@ -53,7 +57,6 @@ namespace tracegraph::app
 
         eventTableView_ = new QTableView(centralWidget);
         eventTableView_->setModel(eventFilterProxyModel_);
-
         eventTableView_->setSelectionBehavior(QAbstractItemView::SelectRows);
         eventTableView_->setSelectionMode(QAbstractItemView::SingleSelection);
         eventTableView_->setAlternatingRowColors(true);
@@ -69,7 +72,6 @@ namespace tracegraph::app
 
         contentSplitter_->addWidget(eventTableView_);
         contentSplitter_->addWidget(timelineView_);
-
         contentSplitter_->setChildrenCollapsible(false);
         contentSplitter_->setStretchFactor(0, 1);
         contentSplitter_->setStretchFactor(1, 1);
@@ -78,6 +80,17 @@ namespace tracegraph::app
         centralLayout->addWidget(contentSplitter_);
 
         setCentralWidget(centralWidget);
+
+        eventInspectorDock_ = new QDockWidget(QStringLiteral("Event Inspector"), this);
+        eventInspectorDock_->setObjectName(QStringLiteral("EventInspectorDock"));
+        eventInspectorDock_->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+
+        eventInspectorWidget_ = new EventInspectorWidget(eventInspectorDock_);
+        eventInspectorDock_->setWidget(eventInspectorWidget_);
+
+        addDockWidget(Qt::RightDockWidgetArea, eventInspectorDock_);
+
+        viewMenu->addAction(eventInspectorDock_->toggleViewAction());
 
         sessionStatusLabel_ = new QLabel(QStringLiteral("No trace loaded"), statusBar());
         statusBar()->addPermanentWidget(sessionStatusLabel_);
@@ -92,8 +105,10 @@ namespace tracegraph::app
                     }
 
                     selectionController_->clearSelection();
+
                     eventTableModel_->setSession(session);
                     timelineView_->setSession(session);
+                    eventInspectorWidget_->setSession(session);
 
                     sessionStatusLabel_->setText(QStringLiteral("Loaded %1 events.").arg(session->events().size()));
                 });
@@ -151,6 +166,7 @@ namespace tracegraph::app
                     eventTableView_->selectRow(proxyIndex.row());
                     eventTableView_->scrollTo(proxyIndex);
                 });
+        connect(selectionController_, &SelectionController::selectedEventIdChanged, eventInspectorWidget_, &EventInspectorWidget::setSelectedEventId);
 
         openAction->setEnabled(true);
     }
