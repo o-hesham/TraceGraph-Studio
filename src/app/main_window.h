@@ -17,6 +17,7 @@ namespace tracegraph::app
     class TimelineView;
     class SelectionController;
     class EventInspectorWidget;
+    class DependencyGraphView;
 
     class MainWindow final : public QMainWindow
     {
@@ -41,6 +42,9 @@ namespace tracegraph::app
 
         QDockWidget *eventInspectorDock_ = nullptr;
         EventInspectorWidget *eventInspectorWidget_ = nullptr;
+
+        QDockWidget *dependencyGraphDock_ = nullptr;
+        DependencyGraphView *dependencyGraphView_ = nullptr;
     };
 
 } // namespace tracegraph::app

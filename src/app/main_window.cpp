@@ -5,6 +5,7 @@
 #include "app/timeline_view.h"
 #include "app/selection_controller.h"
 #include "app/event_inspector_widget.h"
+#include "app/dependency_graph_view.h"
 
 #include <optional>
 
@@ -90,7 +91,17 @@ namespace tracegraph::app
 
         addDockWidget(Qt::RightDockWidgetArea, eventInspectorDock_);
 
+        dependencyGraphDock_ = new QDockWidget(QStringLiteral("Dependency Graph"), this);
+        dependencyGraphDock_->setObjectName(QStringLiteral("DependencyGraphDock"));
+        dependencyGraphDock_->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
+
+        dependencyGraphView_ = new DependencyGraphView(dependencyGraphDock_);
+        dependencyGraphDock_->setWidget(dependencyGraphView_);
+
+        addDockWidget(Qt::BottomDockWidgetArea, dependencyGraphDock_);
+
         viewMenu->addAction(eventInspectorDock_->toggleViewAction());
+        viewMenu->addAction(dependencyGraphDock_->toggleViewAction());
 
         sessionStatusLabel_ = new QLabel(QStringLiteral("No trace loaded"), statusBar());
         statusBar()->addPermanentWidget(sessionStatusLabel_);
@@ -109,6 +120,7 @@ namespace tracegraph::app
                     eventTableModel_->setSession(session);
                     timelineView_->setSession(session);
                     eventInspectorWidget_->setSession(session);
+                    dependencyGraphView_->setSession(session);
 
                     sessionStatusLabel_->setText(QStringLiteral("Loaded %1 events.").arg(session->events().size()));
                 });
@@ -167,6 +179,7 @@ namespace tracegraph::app
                     eventTableView_->scrollTo(proxyIndex);
                 });
         connect(selectionController_, &SelectionController::selectedEventIdChanged, eventInspectorWidget_, &EventInspectorWidget::setSelectedEventId);
+        connect(selectionController_, &SelectionController::selectedEventIdChanged, dependencyGraphView_, &DependencyGraphView::setSelectedEventId);
 
         openAction->setEnabled(true);
     }
