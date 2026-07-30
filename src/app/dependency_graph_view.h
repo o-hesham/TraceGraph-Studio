@@ -8,6 +8,7 @@
 
 class QGraphicsScene;
 class QMouseEvent;
+class QWheelEvent;
 
 namespace tracegraph::domain
 {
@@ -32,6 +33,7 @@ namespace tracegraph::app
 
     protected:
         void mousePressEvent(QMouseEvent *event) override;
+        void wheelEvent(QWheelEvent *event) override;
 
     private:
         // Rebuilds the scene for the currently selected event.

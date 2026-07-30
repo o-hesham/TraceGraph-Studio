@@ -1,6 +1,8 @@
 #include "app/dependency_graph_view.h"
 #include "domain/trace_session.h"
 
+#include <cmath>
+
 #include <QGraphicsScene>
 #include <QGraphicsTextItem>
 #include <QPainter>
@@ -17,6 +19,7 @@
 #include <QGraphicsItem>
 #include <QMouseEvent>
 #include <QVariant>
+#include <QWheelEvent>
 
 namespace
 {
@@ -31,6 +34,9 @@ namespace
     constexpr qreal ArrowLength = 14.0;
     constexpr qreal ArrowHalfWidth = 6.0;
     constexpr int EventIdDataKey = 0;
+    constexpr qreal MinimumGraphScale = 0.25;
+    constexpr qreal MaximumGraphScale = 4.0;
+    constexpr qreal GraphZoomStep = 1.15;
 
     // Adds one event node to the scene at the given center position.
     void addEventNode(QGraphicsScene *scene, const tracegraph::domain::TraceEvent &event, const QPalette &palette, const QPointF &position, bool isSelected)
@@ -118,6 +124,7 @@ namespace tracegraph::app
     {
         session_ = session;
         selectedEventId_.reset();
+        resetTransform();
         rebuildGraph();
     }
 
@@ -157,6 +164,28 @@ namespace tracegraph::app
         }
 
         QGraphicsView::mousePressEvent(event);
+    }
+
+    void DependencyGraphView::wheelEvent(QWheelEvent *event)
+    {
+        if (!(event->modifiers() & Qt::ControlModifier) || event->angleDelta().y() == 0)
+        {
+            QGraphicsView::wheelEvent(event);
+            return;
+        }
+
+        const qreal zoomSteps = event->angleDelta().y() / 120.0;
+
+        const qreal requestedFactor = std::pow(GraphZoomStep, zoomSteps);
+
+        const qreal currentScale = transform().m11();
+
+        const qreal targetScale = qBound(MinimumGraphScale, currentScale * requestedFactor, MaximumGraphScale);
+
+        const qreal appliedFactor = targetScale / currentScale;
+
+        scale(appliedFactor, appliedFactor);
+        event->accept();
     }
 
     void DependencyGraphView::rebuildGraph()
