@@ -14,6 +14,9 @@
 #include <QLineF>
 #include <QPolygonF>
 #include <QVector>
+#include <QGraphicsItem>
+#include <QMouseEvent>
+#include <QVariant>
 
 namespace
 {
@@ -27,6 +30,7 @@ namespace
     constexpr qreal VerticalNodeGap = 40.0;
     constexpr qreal ArrowLength = 14.0;
     constexpr qreal ArrowHalfWidth = 6.0;
+    constexpr int EventIdDataKey = 0;
 
     // Adds one event node to the scene at the given center position.
     void addEventNode(QGraphicsScene *scene, const tracegraph::domain::TraceEvent &event, const QPalette &palette, const QPointF &position, bool isSelected)
@@ -40,6 +44,8 @@ namespace
         outlinePen.setWidthF(isSelected ? 2.0 : 1.0);
 
         QGraphicsRectItem *nodeItem = scene->addRect(nodeRect, outlinePen, QBrush(fillColor));
+        nodeItem->setData(EventIdDataKey, QVariant::fromValue(event.id));
+        nodeItem->setCursor(Qt::PointingHandCursor);
         nodeItem->setPos(position);
         nodeItem->setToolTip(QStringLiteral("Event ID: %1").arg(event.id));
 
@@ -124,6 +130,33 @@ namespace tracegraph::app
 
         selectedEventId_ = selectedEventId;
         rebuildGraph();
+    }
+
+    void DependencyGraphView::mousePressEvent(QMouseEvent *event)
+    {
+        if (event->button() != Qt::LeftButton)
+        {
+            QGraphicsView::mousePressEvent(event);
+            return;
+        }
+
+        QGraphicsItem *clickedItem = itemAt(event->position().toPoint());
+
+        while (clickedItem != nullptr)
+        {
+            const QVariant eventIdData = clickedItem->data(EventIdDataKey);
+            if (eventIdData.isValid())
+            {
+                emit eventSelected(eventIdData.toLongLong());
+
+                event->accept();
+                return;
+            }
+
+            clickedItem = clickedItem->parentItem();
+        }
+
+        QGraphicsView::mousePressEvent(event);
     }
 
     void DependencyGraphView::rebuildGraph()

@@ -7,6 +7,7 @@
 #include <optional>
 
 class QGraphicsScene;
+class QMouseEvent;
 
 namespace tracegraph::domain
 {
@@ -18,11 +19,19 @@ namespace tracegraph::app
 
     class DependencyGraphView final : public QGraphicsView
     {
+        Q_OBJECT
+
     public:
         explicit DependencyGraphView(QWidget *parent = nullptr);
 
         void setSession(const domain::TraceSession *session);
         void setSelectedEventId(std::optional<domain::EventId> selectedEventId);
+
+    signals:
+        void eventSelected(domain::EventId eventId);
+
+    protected:
+        void mousePressEvent(QMouseEvent *event) override;
 
     private:
         // Rebuilds the scene for the currently selected event.

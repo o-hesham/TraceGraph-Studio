@@ -180,6 +180,7 @@ namespace tracegraph::app
                 });
         connect(selectionController_, &SelectionController::selectedEventIdChanged, eventInspectorWidget_, &EventInspectorWidget::setSelectedEventId);
         connect(selectionController_, &SelectionController::selectedEventIdChanged, dependencyGraphView_, &DependencyGraphView::setSelectedEventId);
+        connect(dependencyGraphView_, &DependencyGraphView::eventSelected, selectionController_, &SelectionController::selectEvent);
 
         openAction->setEnabled(true);
     }
