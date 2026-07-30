@@ -70,8 +70,8 @@ namespace
         textItem->setPos(-NodeWidth / 2.0 + NodePadding, -textBounds.height() / 2.0);
     }
 
-    // Draws a directed edge from a dependency to its dependent event.
-    void addDependencyEdge(QGraphicsScene *scene, const QPointF &start, const QPointF &end, const QPalette &palette)
+    // Draws a directed relationship edge between two graph nodes.
+    void addDirectedEdge(QGraphicsScene *scene, const QPointF &start, const QPointF &end, const QPalette &palette, Qt::PenStyle lineStyle, const QString &tooltip)
     {
         const QLineF edgeLine(start, end);
         if (edgeLine.length() <= 0.0)
@@ -82,10 +82,12 @@ namespace
         QColor edgeColor = palette.text().color();
         edgeColor.setAlpha(180);
 
-        const QPen edgePen(edgeColor, 1.5);
+        QPen edgePen(edgeColor, 1.5);
+        edgePen.setStyle(lineStyle);
 
         QGraphicsLineItem *lineItem = scene->addLine(edgeLine, edgePen);
         lineItem->setZValue(-1.0);
+        lineItem->setToolTip(tooltip);
 
         const QLineF unitLine = edgeLine.unitVector();
         const QPointF direction = unitLine.p2() - unitLine.p1();
@@ -98,8 +100,11 @@ namespace
         arrowHead << end << arrowBase + perpendicular * ArrowHalfWidth
                   << arrowBase - perpendicular * ArrowHalfWidth;
 
-        QGraphicsPolygonItem *arrowItem = scene->addPolygon(arrowHead, edgePen, QBrush(edgeColor));
+        QPen arrowPen(edgeColor, 1.5);
 
+        QGraphicsPolygonItem *arrowItem = scene->addPolygon(arrowHead, arrowPen, QBrush(edgeColor));
+
+        arrowItem->setToolTip(tooltip);
         arrowItem->setZValue(-1.0);
     }
 
@@ -222,7 +227,7 @@ namespace tracegraph::app
 
             const qreal selectedX = dependencyEvents.isEmpty() ? 0.0 : NodeWidth + HorizontalNodeGap;
 
-            const QPointF selectedPosition(selectedX, 0.0l);
+            const QPointF selectedPosition(selectedX, 0.0);
 
             const qreal dependencySpacing = NodeHeight + VerticalNodeGap;
 
@@ -232,9 +237,23 @@ namespace tracegraph::app
             {
                 const QPointF dependencyPosition(0.0, firstDependencyY + index * dependencySpacing);
 
-                addDependencyEdge(scene_, dependencyPosition + QPointF(NodeWidth / 2.0, 0.0), selectedPosition - QPointF(NodeWidth / 2.0, 0.0), palette());
+                addDirectedEdge(scene_, dependencyPosition + QPointF(NodeWidth / 2.0, 0.0), selectedPosition - QPointF(NodeWidth / 2.0, 0.0), palette(), Qt::SolidLine, QStringLiteral("Dependency relationship"));
 
                 addEventNode(scene_, *dependencyEvents.at(index), palette(), dependencyPosition, false);
+            }
+
+            if (selectedEvent->parentId.has_value())
+            {
+                const domain::TraceEvent *parentEvent = session_->eventById(*selectedEvent->parentId);
+
+                if (parentEvent != nullptr)
+                {
+                    const QPointF parentPosition(selectedPosition.x(), selectedPosition.y() - NodeHeight - VerticalNodeGap);
+
+                    addDirectedEdge(scene_, parentPosition + QPointF(0.0, NodeHeight / 2.0), selectedPosition - QPointF(0.0, NodeHeight / 2.0), palette(), Qt::DashLine, QStringLiteral("Parent relationship"));
+
+                    addEventNode(scene_, *parentEvent, palette(), parentPosition, false);
+                }
             }
 
             addEventNode(scene_, *selectedEvent, palette(), selectedPosition, true);
