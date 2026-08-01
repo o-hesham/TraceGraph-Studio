@@ -223,7 +223,39 @@ namespace tracegraph::app
                 }
             }
 
+            QVector<const domain::TraceEvent *> childEvents;
+            const auto &childIds = session_->childIds(selectedEvent->id);
+
+            childEvents.reserve(childIds.size());
+
+            for (const auto &childId : childIds)
+            {
+                const domain::TraceEvent *childEvent = session_->eventById(childId);
+
+                if (childEvent != nullptr)
+                {
+                    childEvents.append(childEvent);
+                }
+            }
+
+            QVector<const domain::TraceEvent *> dependentEvents;
+            const auto &dependentIds = session_->dependentIds(selectedEvent->id);
+
+            dependentEvents.reserve(dependentIds.size());
+
+            for (const auto dependentId : dependentIds)
+            {
+                const domain::TraceEvent *dependentEvent = session_->eventById(dependentId);
+
+                if (dependentEvent != nullptr)
+                {
+                    dependentEvents.append(dependentEvent);
+                }
+            }
+
             const int dependencyCount = static_cast<int>(dependencyEvents.size());
+            const int dependentCount = static_cast<int>(dependentEvents.size());
+            const int childCount = static_cast<int>(childEvents.size());
 
             const qreal selectedX = dependencyEvents.isEmpty() ? 0.0 : NodeWidth + HorizontalNodeGap;
 
@@ -232,14 +264,49 @@ namespace tracegraph::app
             const qreal dependencySpacing = NodeHeight + VerticalNodeGap;
 
             const qreal firstDependencyY = -0.5 * (dependencyCount - 1) * dependencySpacing;
+            const qreal firstDependentY = -0.5 * (dependentCount - 1) * dependencySpacing;
+
+            const qreal childSpacing = NodeWidth + HorizontalNodeGap;
+
+            const qreal firstChildX = selectedPosition.x() - 0.5 * (childCount - 1) * childSpacing;
+
+            const qreal childY = selectedPosition.y() + NodeHeight + VerticalNodeGap;
 
             for (int index = 0; index < dependencyCount; ++index)
             {
                 const QPointF dependencyPosition(0.0, firstDependencyY + index * dependencySpacing);
 
-                addDirectedEdge(scene_, dependencyPosition + QPointF(NodeWidth / 2.0, 0.0), selectedPosition - QPointF(NodeWidth / 2.0, 0.0), palette(), Qt::SolidLine, QStringLiteral("Dependency relationship"));
+                addDirectedEdge(scene_,
+                                dependencyPosition + QPointF(NodeWidth / 2.0, 0.0),
+                                selectedPosition - QPointF(NodeWidth / 2.0, 0.0),
+                                palette(),
+                                Qt::SolidLine,
+                                QStringLiteral("Dependency relationship"));
 
-                addEventNode(scene_, *dependencyEvents.at(index), palette(), dependencyPosition, false);
+                addEventNode(scene_,
+                             *dependencyEvents.at(index),
+                             palette(),
+                             dependencyPosition,
+                             false);
+            }
+
+            for (int index = 0; index < dependentCount; ++index)
+            {
+                const QPointF dependentPosition(selectedPosition.x() + NodeWidth + HorizontalNodeGap,
+                                                firstDependentY + index * dependencySpacing);
+
+                addDirectedEdge(scene_,
+                                selectedPosition + QPointF(NodeWidth / 2.0, 0.0),
+                                dependentPosition - QPointF(NodeWidth / 2.0, 0.0),
+                                palette(),
+                                Qt::SolidLine,
+                                QStringLiteral("Dependent relationship"));
+
+                addEventNode(scene_,
+                             *dependentEvents.at(index),
+                             palette(),
+                             dependentPosition,
+                             false);
             }
 
             if (selectedEvent->parentId.has_value())
@@ -248,12 +315,42 @@ namespace tracegraph::app
 
                 if (parentEvent != nullptr)
                 {
-                    const QPointF parentPosition(selectedPosition.x(), selectedPosition.y() - NodeHeight - VerticalNodeGap);
+                    const QPointF parentPosition(selectedPosition.x(),
+                                                 selectedPosition.y() - NodeHeight - VerticalNodeGap);
 
-                    addDirectedEdge(scene_, parentPosition + QPointF(0.0, NodeHeight / 2.0), selectedPosition - QPointF(0.0, NodeHeight / 2.0), palette(), Qt::DashLine, QStringLiteral("Parent relationship"));
+                    addDirectedEdge(scene_,
+                                    parentPosition + QPointF(0.0, NodeHeight / 2.0),
+                                    selectedPosition - QPointF(0.0, NodeHeight / 2.0),
+                                    palette(),
+                                    Qt::DashLine,
+                                    QStringLiteral("Parent relationship"));
 
-                    addEventNode(scene_, *parentEvent, palette(), parentPosition, false);
+                    addEventNode(scene_,
+                                 *parentEvent,
+                                 palette(),
+                                 parentPosition,
+                                 false);
                 }
+            }
+
+            for (int index = 0; index < childCount; ++index)
+            {
+                const QPointF childPosition(firstChildX + index * childSpacing, childY);
+
+                addDirectedEdge(
+                    scene_,
+                    selectedPosition + QPointF(0.0, NodeHeight / 2.0),
+                    childPosition - QPointF(0.0, NodeHeight / 2.0),
+                    palette(),
+                    Qt::DashLine,
+                    QStringLiteral("Child relationship"));
+
+                addEventNode(
+                    scene_,
+                    *childEvents.at(index),
+                    palette(),
+                    childPosition,
+                    false);
             }
 
             addEventNode(scene_, *selectedEvent, palette(), selectedPosition, true);
