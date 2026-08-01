@@ -30,9 +30,9 @@ namespace tracegraph::app
         explicit TimelineView(QWidget *parent = nullptr);
 
         void setSession(const domain::TraceSession *session);
-
         // Updates the highlight when another widget selects an event.
         void setSelectedEventId(std::optional<domain::EventId> eventId);
+        void setFilterText(const QString &filterText);
 
     signals:
         void eventSelected(domain::EventId eventId);
@@ -59,6 +59,9 @@ namespace tracegraph::app
         // Which timeline event is underneath this mouse position.
         [[nodiscard]] const domain::TraceEvent *eventAtPosition(const QPointF &position) const;
 
+        // Checks whether an event matches the current text filter.
+        [[nodiscard]] bool eventMatchesFilter(const domain::TraceEvent &event) const;
+
         const domain::TraceSession *session_ = nullptr;
 
         QStringList threadNames_;
@@ -68,6 +71,8 @@ namespace tracegraph::app
         quint64 timelineEndMicroseconds_ = 0;
 
         qreal zoomFactor_ = 1.0;
+
+        QString filterText_;
 
         std::optional<domain::EventId> selectedEventId_;
     };

@@ -6,6 +6,7 @@
 #include "app/selection_controller.h"
 #include "app/event_inspector_widget.h"
 #include "app/dependency_graph_view.h"
+#include "app/filter_state.h"
 
 #include <optional>
 
@@ -43,6 +44,7 @@ namespace tracegraph::app
         loadController_ = new LoadController(this, this);
 
         selectionController_ = new SelectionController(this);
+        filterState_ = new FilterState(this);
 
         eventTableModel_ = new EventTableModel(this);
 
@@ -124,7 +126,9 @@ namespace tracegraph::app
 
                     sessionStatusLabel_->setText(QStringLiteral("Loaded %1 events.").arg(session->events().size()));
                 });
-        connect(filterLineEdit_, &QLineEdit::textChanged, eventFilterProxyModel_, &QSortFilterProxyModel::setFilterFixedString);
+        connect(filterLineEdit_, &QLineEdit::textChanged, filterState_, &FilterState::setFilterText);
+        connect(filterState_, &FilterState::filterTextChanged, eventFilterProxyModel_, &EventFilterProxyModel::setFilterFixedString);
+        connect(filterState_, &FilterState::filterTextChanged, timelineView_, &TimelineView::setFilterText);
         connect(eventTableView_->selectionModel(), &QItemSelectionModel::selectionChanged, this,
                 [this](const QItemSelection &, const QItemSelection &)
                 {

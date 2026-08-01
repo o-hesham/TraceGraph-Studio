@@ -92,6 +92,17 @@ namespace tracegraph::app
         viewport()->update();
     }
 
+    void TimelineView::setFilterText(const QString &filterText)
+    {
+        if (filterText_ == filterText)
+        {
+            return;
+        }
+
+        filterText_ = filterText;
+        viewport()->update();
+    }
+
     void TimelineView::rebuildTimelineMetadata()
     {
         threadNames_.clear();
@@ -157,6 +168,26 @@ namespace tracegraph::app
         return QRectF(eventLeft, eventTop, eventWidth, LaneHeight - 2 * EventVerticalPadding);
     }
 
+    bool TimelineView::eventMatchesFilter(const domain::TraceEvent &event) const
+    {
+        if (filterText_.isEmpty())
+        {
+            return true;
+        }
+
+        const auto containsFilterText = [this](const QString &value)
+        {
+            return value.contains(filterText_, Qt::CaseInsensitive);
+        };
+
+        return containsFilterText(QString::number(event.id)) ||
+               containsFilterText(event.name) ||
+               containsFilterText(event.category) ||
+               containsFilterText(event.thread) ||
+               containsFilterText(QString::number(event.startMicroseconds)) ||
+               containsFilterText(QString::number(event.durationMicroseconds));
+    }
+
     const domain::TraceEvent *TimelineView::eventAtPosition(const QPointF &position) const
     {
         if (session_ == nullptr || session_->events().isEmpty() || position.y() < HeaderHeight)
@@ -185,6 +216,11 @@ namespace tracegraph::app
         for (qsizetype index = events.size(); index > 0; --index)
         {
             const domain::TraceEvent &traceEvent = events.at(index - 1);
+
+            if (!eventMatchesFilter(traceEvent))
+            {
+                continue;
+            }
 
             const QRectF eventRect = eventRectangle(traceEvent, contentOriginX, contentPlotWidth, verticalOffset);
 
@@ -322,6 +358,11 @@ namespace tracegraph::app
         for (const domain::TraceEvent &traceEvent :
              session_->events())
         {
+            if (!eventMatchesFilter(traceEvent))
+            {
+                continue;
+            }
+
             const QRectF eventRect = eventRectangle(traceEvent, contentOriginX, contentPlotWidth, verticalOffset);
 
             if (!eventRect.isValid())
