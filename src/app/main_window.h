@@ -7,6 +7,7 @@ class QTableView;
 class QLineEdit;
 class QSplitter;
 class QDockWidget;
+class QCloseEvent;
 
 namespace tracegraph::app
 {
@@ -25,7 +26,16 @@ namespace tracegraph::app
     public:
         explicit MainWindow(QWidget *parent = nullptr);
 
+    protected:
+        void closeEvent(QCloseEvent *event) override;
+
     private:
+        // Restores the previously saved window and splitter layout.
+        void restoreWindowSettings();
+
+        // Saves the current window and splitter layout.
+        void saveWindowSettings() const;
+
         LoadController *loadController_ = nullptr;
         QLabel *sessionStatusLabel_ = nullptr;
 

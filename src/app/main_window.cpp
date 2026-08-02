@@ -25,6 +25,9 @@
 #include <QVariant>
 #include <QItemSelectionModel>
 #include <QDockWidget>
+#include <QByteArray>
+#include <QCloseEvent>
+#include <QSettings>
 
 namespace tracegraph::app
 {
@@ -33,6 +36,8 @@ namespace tracegraph::app
         : QMainWindow(parent)
     {
         setWindowTitle(QStringLiteral("TraceGraph Studio"));
+
+        resize(1200, 800);
 
         QMenu *fileMenu = menuBar()->addMenu(QStringLiteral("&File"));
 
@@ -187,6 +192,47 @@ namespace tracegraph::app
         connect(dependencyGraphView_, &DependencyGraphView::eventSelected, selectionController_, &SelectionController::selectEvent);
 
         openAction->setEnabled(true);
+
+        restoreWindowSettings();
+    }
+
+    void MainWindow::restoreWindowSettings()
+    {
+        QSettings settings;
+
+        const QByteArray geometry = settings.value(QStringLiteral("mainWindow/geometry")).toByteArray();
+        const QByteArray windowState = settings.value(QStringLiteral("mainWindow/state")).toByteArray();
+        const QByteArray splitterState = settings.value(QStringLiteral("mainWindow/contentSplitter")).toByteArray();
+
+        if (!geometry.isEmpty())
+        {
+            restoreGeometry(geometry);
+        }
+
+        if (!windowState.isEmpty())
+        {
+            restoreState(windowState);
+        }
+
+        if (!splitterState.isEmpty())
+        {
+            contentSplitter_->restoreState(splitterState);
+        }
+    }
+
+    void MainWindow::saveWindowSettings() const
+    {
+        QSettings settings;
+
+        settings.setValue(QStringLiteral("mainWindow/geometry"), saveGeometry());
+        settings.setValue(QStringLiteral("mainWindow/state"), saveState());
+        settings.setValue(QStringLiteral("mainWindow/contentSplitter"), contentSplitter_->saveState());
+    }
+
+    void MainWindow::closeEvent(QCloseEvent *event)
+    {
+        saveWindowSettings();
+        QMainWindow::closeEvent(event);
     }
 
 } // namespace tracegraph::app
