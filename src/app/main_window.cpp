@@ -131,6 +131,27 @@ namespace tracegraph::app
 
                     sessionStatusLabel_->setText(QStringLiteral("Loaded %1 events.").arg(session->events().size()));
                 });
+        connect(loadController_, &LoadController::loadingChanged, this,
+                [this, openAction](bool isLoading)
+                {
+                    openAction->setEnabled(!isLoading);
+
+                    if (isLoading)
+                    {
+                        sessionStatusLabel_->setText(QStringLiteral("Loading trace..."));
+                        return;
+                    }
+
+                    const domain::TraceSession *session = loadController_->session();
+
+                    if (session == nullptr)
+                    {
+                        sessionStatusLabel_->setText(QStringLiteral("No trace loaded"));
+                        return;
+                    }
+
+                    sessionStatusLabel_->setText(QStringLiteral("Loaded %1 events.").arg(session->events().size()));
+                });
         connect(filterLineEdit_, &QLineEdit::textChanged, filterState_, &FilterState::setFilterText);
         connect(filterState_, &FilterState::filterTextChanged, eventFilterProxyModel_, &EventFilterProxyModel::setFilterFixedString);
         connect(filterState_, &FilterState::filterTextChanged, timelineView_, &TimelineView::setFilterText);

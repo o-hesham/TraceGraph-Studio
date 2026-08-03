@@ -4,6 +4,7 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QStringList>
+#include <QtConcurrentRun>
 
 #include <utility>
 #include <variant>
@@ -29,7 +30,12 @@ namespace tracegraph::app
     } // namespace
 
     LoadController::LoadController(QWidget *dialogParent, QObject *parent)
-        : QObject(parent), dialogParent_(dialogParent) {}
+        : QObject(parent), dialogParent_(dialogParent)
+    {
+        loadWatcher_ = new QFutureWatcher<domain::TraceLoadResult>(this);
+
+        connect(loadWatcher_, &QFutureWatcher<domain::TraceLoadResult>::finished, this, &LoadController::handleLoadFinished);
+    }
 
     const domain::TraceSession *LoadController::session() const
     {
@@ -38,20 +44,37 @@ namespace tracegraph::app
 
     void LoadController::openTraceFile()
     {
+        if (loadWatcher_->isRunning())
+        {
+            return;
+        }
+
         const QString filePath = QFileDialog::getOpenFileName(dialogParent_, QStringLiteral("Open Trace"), QString(), QStringLiteral("TraceGraph traces (*.tgtrace);;All files (*)"));
 
         if (filePath.isEmpty())
+        {
             return;
+        }
 
-        io::TraceReader traceReader;
-        auto loadResult = traceReader.readFile(filePath);
+        emit loadingChanged(true);
+
+        loadWatcher_->setFuture(QtConcurrent::run(
+            [filePath]()
+            {
+                io::TraceReader traceReader;
+                return traceReader.readFile(filePath);
+            }));
+    }
+
+    void LoadController::handleLoadFinished()
+    {
+        auto loadResult = loadWatcher_->result();
 
         if (const auto *errors = std::get_if<domain::TraceLoadErrors>(&loadResult))
         {
-            QMessageBox::critical(
-                dialogParent_,
-                QStringLiteral("Unable to Open Trace"),
-                formatErrors(*errors));
+            QMessageBox::critical(dialogParent_, QStringLiteral("Unable to Open Trace"), formatErrors(*errors));
+
+            emit loadingChanged(false);
 
             return;
         }
@@ -59,6 +82,7 @@ namespace tracegraph::app
         session_.emplace(std::get<domain::TraceSession>(std::move(loadResult)));
 
         emit sessionLoaded(&session_.value());
+        emit loadingChanged(false);
     }
 
 } // namespace tracegraph::app

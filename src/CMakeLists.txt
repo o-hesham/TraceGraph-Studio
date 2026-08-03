@@ -18,6 +18,9 @@ target_include_directories(tracegraph_app
 target_link_libraries(tracegraph_app
     PUBLIC
         Qt6::Widgets
+
+    PRIVATE
+        Qt6::Concurrent
 )
 
 qt_add_executable(tracegraph-studio
