@@ -9,6 +9,7 @@
 #include <QPointF>
 #include <QMouseEvent>
 #include <QPen>
+#include <QSet>
 
 namespace
 {
@@ -22,19 +23,7 @@ namespace
     constexpr qreal MinimumZoomFactor = 1.0;
     constexpr qreal MaximumZoomFactor = 64.0;
     constexpr qreal ZoomStep = 1.25;
-
-    // Converts a trace time into an x pixel position on the timeline.
-    [[nodiscard]] qreal traceTimeToX(quint64 timestamp, quint64 timelineStart, quint64 timelineEnd, qreal plotLeft, qreal plotWidth)
-    {
-        if (timelineEnd <= timelineStart)
-        {
-            return plotLeft;
-        }
-
-        const long double position = static_cast<long double>(timestamp - timelineStart) / static_cast<long double>(timelineEnd - timelineStart);
-
-        return plotLeft + static_cast<qreal>(position * plotWidth);
-    }
+    constexpr int EventDensityBucketWidth = 3;
 
     // Converts an x pixel position on the timeline into a time.
     [[nodiscard]] quint64 contentXToTraceTime(qreal contentX, qreal contentWidth, quint64 timelineStart, quint64 timelineEnd)
@@ -107,6 +96,7 @@ namespace tracegraph::app
     {
         threadNames_.clear();
         laneByThread_.clear();
+        eventLayouts_.clear();
 
         timelineStartMicroseconds_ = 0;
         timelineEndMicroseconds_ = 0;
@@ -143,27 +133,41 @@ namespace tracegraph::app
                 timelineEndMicroseconds_ = qMax(timelineEndMicroseconds_, end);
             }
         }
+
+        const quint64 timelineDuration = timelineEndMicroseconds_ - timelineStartMicroseconds_;
+
+        eventLayouts_.reserve(session_->events().size());
+
+        for (qsizetype eventIndex = 0; eventIndex < session_->events().size(); ++eventIndex)
+        {
+            const domain::TraceEvent &event = session_->events().at(eventIndex);
+
+            const quint64 eventStart = static_cast<quint64>(event.startMicroseconds);
+            const quint64 eventEnd = eventStart + static_cast<quint64>(event.durationMicroseconds);
+
+            qreal normalizedStart = 0.0;
+            qreal normalizedEnd = 0.0;
+
+            if (timelineDuration > 0)
+            {
+                normalizedStart = static_cast<qreal>(eventStart - timelineStartMicroseconds_) / static_cast<qreal>(timelineDuration);
+
+                normalizedEnd = static_cast<qreal>(eventEnd - timelineStartMicroseconds_) / static_cast<qreal>(timelineDuration);
+            }
+
+            eventLayouts_.append({eventIndex,
+                                  laneByThread_.value(event.thread),
+                                  normalizedStart,
+                                  normalizedEnd});
+        }
     }
 
-    QRectF TimelineView::eventRectangle(const domain::TraceEvent &traceEvent, qreal contentOriginX, qreal contentPlotWidth, int verticalOffset) const
+    QRectF TimelineView::eventRectangle(const EventLayout &layout, qreal contentOriginX, qreal contentPlotWidth, int verticalOffset) const
     {
-        const auto laneIterator = laneByThread_.constFind(traceEvent.thread);
-
-        if (laneIterator == laneByThread_.cend())
-        {
-            return {};
-        }
-
-        const int lane = laneIterator.value();
-
-        const quint64 eventStart = static_cast<quint64>(traceEvent.startMicroseconds);
-        const quint64 eventEnd = eventStart + static_cast<quint64>(traceEvent.durationMicroseconds);
-
-        const qreal eventLeft = traceTimeToX(eventStart, timelineStartMicroseconds_, timelineEndMicroseconds_, contentOriginX, contentPlotWidth);
-        const qreal eventRight = traceTimeToX(eventEnd, timelineStartMicroseconds_, timelineEndMicroseconds_, contentOriginX, contentPlotWidth);
-
+        const qreal eventLeft = contentOriginX + layout.normalizedStart * contentPlotWidth;
+        const qreal eventRight = contentOriginX + layout.normalizedEnd * contentPlotWidth;
         const qreal eventWidth = qMax(MinimumEventWidth, eventRight - eventLeft);
-        const qreal eventTop = HeaderHeight + lane * LaneHeight + EventVerticalPadding - verticalOffset;
+        const qreal eventTop = HeaderHeight + layout.lane * LaneHeight + EventVerticalPadding - verticalOffset;
 
         return QRectF(eventLeft, eventTop, eventWidth, LaneHeight - 2 * EventVerticalPadding);
     }
@@ -212,17 +216,23 @@ namespace tracegraph::app
 
         const QVector<domain::TraceEvent> &events = session_->events();
 
-        // Search backward because later-painted events appear on top.
-        for (qsizetype index = events.size(); index > 0; --index)
+        // Search backward because later events normally appear on top.
+        for (qsizetype layoutIndex = eventLayouts_.size(); layoutIndex > 0; --layoutIndex)
         {
-            const domain::TraceEvent &traceEvent = events.at(index - 1);
+            const EventLayout &layout = eventLayouts_.at(layoutIndex - 1);
+
+            const domain::TraceEvent &traceEvent = events.at(layout.eventIndex);
 
             if (!eventMatchesFilter(traceEvent))
             {
                 continue;
             }
 
-            const QRectF eventRect = eventRectangle(traceEvent, contentOriginX, contentPlotWidth, verticalOffset);
+            const QRectF eventRect = eventRectangle(
+                layout,
+                contentOriginX,
+                contentPlotWidth,
+                verticalOffset);
 
             if (eventRect.isValid() && eventRect.contains(position))
             {
@@ -294,11 +304,9 @@ namespace tracegraph::app
         const QRect viewportRect = viewport()->rect();
 
         const int plotLeft = ThreadLabelWidth + Padding;
-
         const int plotRight = qMax(plotLeft, viewportRect.right() - Padding);
 
         const int visiblePlotWidth = qMax(1, plotRight - plotLeft);
-
         const qreal contentPlotWidth = visiblePlotWidth * zoomFactor_;
 
         const int horizontalOffset = horizontalScrollBar()->value();
@@ -306,7 +314,6 @@ namespace tracegraph::app
         const qreal contentOriginX = plotLeft - horizontalOffset;
 
         const quint64 visibleStartTime = contentXToTraceTime(horizontalOffset, contentPlotWidth, timelineStartMicroseconds_, timelineEndMicroseconds_);
-
         const quint64 visibleEndTime = contentXToTraceTime(horizontalOffset + visiblePlotWidth, contentPlotWidth, timelineStartMicroseconds_, timelineEndMicroseconds_);
 
         // Draw the timeline header.
@@ -315,9 +322,7 @@ namespace tracegraph::app
         painter.setPen(palette().text().color());
 
         painter.drawText(QRect(Padding, 0, ThreadLabelWidth - Padding, HeaderHeight), Qt::AlignLeft | Qt::AlignVCenter, QStringLiteral("Thread"));
-
         painter.drawText(QRect(plotLeft, 0, visiblePlotWidth / 2, HeaderHeight), Qt::AlignLeft | Qt::AlignVCenter, QStringLiteral("%1 µs").arg(visibleStartTime));
-
         painter.drawText(QRect(plotLeft + visiblePlotWidth / 2, 0, visiblePlotWidth - visiblePlotWidth / 2, HeaderHeight), Qt::AlignRight | Qt::AlignVCenter, QStringLiteral("%1 µs").arg(visibleEndTime));
 
         // Draw one row for each thread.
@@ -355,22 +360,54 @@ namespace tracegraph::app
 
         painter.setClipRect(QRectF(plotLeft, HeaderHeight, visiblePlotWidth, threadCount * LaneHeight));
 
-        for (const domain::TraceEvent &traceEvent :
-             session_->events())
+        const QRectF visibleEventArea(
+            plotLeft,
+            HeaderHeight,
+            visiblePlotWidth,
+            qMax(0, viewportRect.height() - HeaderHeight));
+
+        const int horizontalBucketCount = (visiblePlotWidth + EventDensityBucketWidth - 1) / EventDensityBucketWidth;
+
+        QSet<qsizetype> occupiedBuckets;
+
+        for (const auto &layout : eventLayouts_)
         {
+            const domain::TraceEvent &traceEvent = session_->events().at(layout.eventIndex);
+
             if (!eventMatchesFilter(traceEvent))
             {
                 continue;
             }
 
-            const QRectF eventRect = eventRectangle(traceEvent, contentOriginX, contentPlotWidth, verticalOffset);
+            const QRectF eventRect = eventRectangle(
+                layout,
+                contentOriginX,
+                contentPlotWidth,
+                verticalOffset);
 
-            if (!eventRect.isValid())
+            if (!eventRect.isValid() || !eventRect.intersects(visibleEventArea))
             {
                 continue;
             }
 
-            const bool isSelected = selectedEventId_.has_value() && selectedEventId_.value() == traceEvent.id;
+            // Group events into small per-lane screen buckets, avoiding the cost of
+            // drawing overlapping events while always allowing the selected event.
+            const int visiblePixelX = qBound(
+                0, static_cast<int>(qMax(eventRect.left(), visibleEventArea.left()) - visibleEventArea.left()),
+                visiblePlotWidth - 1);
+
+            const int bucketColumn = visiblePixelX / EventDensityBucketWidth;
+
+            const qsizetype bucketKey = static_cast<qsizetype>(layout.lane) * horizontalBucketCount + bucketColumn;
+
+            const bool isSelected = selectedEventId_.has_value() && *selectedEventId_ == traceEvent.id;
+
+            if (!isSelected && occupiedBuckets.contains(bucketKey))
+            {
+                continue;
+            }
+
+            occupiedBuckets.insert(bucketKey);
 
             QColor fillColor = palette().highlight().color();
             fillColor.setAlpha(isSelected ? 255 : 200);

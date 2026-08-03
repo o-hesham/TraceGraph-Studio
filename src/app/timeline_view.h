@@ -5,6 +5,7 @@
 #include <QAbstractScrollArea>
 #include <QHash>
 #include <QStringList>
+#include <QVector>
 
 #include <optional>
 
@@ -45,6 +46,14 @@ namespace tracegraph::app
         void mousePressEvent(QMouseEvent *event) override;
 
     private:
+        struct EventLayout
+        {
+            qsizetype eventIndex = 0;
+            int lane = 0;
+            qreal normalizedStart = 0.0;
+            qreal normalizedEnd = 0.0;
+        };
+
         // Recomputes thread lanes and time bounds for a new session.
         void rebuildTimelineMetadata();
 
@@ -53,8 +62,8 @@ namespace tracegraph::app
         // Updates horizontal  scrolling for the current zoom level.
         void updateHorizontalScrollBar();
 
-        // Calculates an event's rectangle after zooming and scrolling.
-        [[nodiscard]] QRectF eventRectangle(const domain::TraceEvent &traceEvent, qreal contentOriginX, qreal contentPlotWidth, int verticalOffset) const;
+        // Calculates an event rectangle using its cached layout.
+        [[nodiscard]] QRectF eventRectangle(const EventLayout &layout, qreal contentOriginX, qreal contentPlotWidth, int verticalOffset) const;
 
         // Which timeline event is underneath this mouse position.
         [[nodiscard]] const domain::TraceEvent *eventAtPosition(const QPointF &position) const;
@@ -66,6 +75,7 @@ namespace tracegraph::app
 
         QStringList threadNames_;
         QHash<QString, int> laneByThread_;
+        QVector<EventLayout> eventLayouts_;
 
         quint64 timelineStartMicroseconds_ = 0;
         quint64 timelineEndMicroseconds_ = 0;
