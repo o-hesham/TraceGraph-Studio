@@ -34,6 +34,9 @@ namespace tracegraph::app
         // Updates the highlight when another widget selects an event.
         void setSelectedEventId(std::optional<domain::EventId> eventId);
         void setFilterText(const QString &filterText);
+        void setMinimumDurationMicroseconds(qint64 minimumDurationMicroseconds);
+        void setThreadFilter(const QString &threadFilter);
+        void setCategoryFilter(const QString &categoryFilter);
 
     signals:
         void eventSelected(domain::EventId eventId);
@@ -80,9 +83,13 @@ namespace tracegraph::app
         quint64 timelineStartMicroseconds_ = 0;
         quint64 timelineEndMicroseconds_ = 0;
 
+        qint64 minimumDurationMicroseconds_ = 0;
+
         qreal zoomFactor_ = 1.0;
 
         QString filterText_;
+        QString threadFilter_;
+        QString categoryFilter_;
 
         std::optional<domain::EventId> selectedEventId_;
     };

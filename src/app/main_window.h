@@ -8,6 +8,13 @@ class QLineEdit;
 class QSplitter;
 class QDockWidget;
 class QCloseEvent;
+class QSpinBox;
+class QComboBox;
+
+namespace tracegraph::domain
+{
+    class TraceSession;
+}
 
 namespace tracegraph::app
 {
@@ -36,6 +43,9 @@ namespace tracegraph::app
         // Saves the current window and splitter layout.
         void saveWindowSettings() const;
 
+        // Rebuilds thread and category choices from the loaded trace.
+        void rebuildFilterOptions(const domain::TraceSession &session);
+
         LoadController *loadController_ = nullptr;
         QLabel *sessionStatusLabel_ = nullptr;
 
@@ -46,6 +56,11 @@ namespace tracegraph::app
 
         QLineEdit *filterLineEdit_ = nullptr;
         QSplitter *contentSplitter_ = nullptr;
+
+        QSpinBox *minimumDurationSpinBox_ = nullptr;
+
+        QComboBox *threadFilterComboBox_ = nullptr;
+        QComboBox *categoryFilterComboBox_ = nullptr;
 
         TimelineView *timelineView_ = nullptr;
 

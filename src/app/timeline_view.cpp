@@ -92,6 +92,42 @@ namespace tracegraph::app
         viewport()->update();
     }
 
+    void TimelineView::setMinimumDurationMicroseconds(qint64 minimumDurationMicroseconds)
+    {
+        const qint64 boundedDuration = qMax<qint64>(0, minimumDurationMicroseconds);
+
+        if (minimumDurationMicroseconds_ == boundedDuration)
+        {
+            return;
+        }
+
+        minimumDurationMicroseconds_ = boundedDuration;
+        viewport()->update();
+    }
+
+    void TimelineView::setThreadFilter(const QString &threadFilter)
+    {
+        if (threadFilter_ == threadFilter)
+        {
+            return;
+        }
+
+        threadFilter_ = threadFilter;
+        viewport()->update();
+    }
+
+    void TimelineView::setCategoryFilter(
+        const QString &categoryFilter)
+    {
+        if (categoryFilter_ == categoryFilter)
+        {
+            return;
+        }
+
+        categoryFilter_ = categoryFilter;
+        viewport()->update();
+    }
+
     void TimelineView::rebuildTimelineMetadata()
     {
         threadNames_.clear();
@@ -174,6 +210,21 @@ namespace tracegraph::app
 
     bool TimelineView::eventMatchesFilter(const domain::TraceEvent &event) const
     {
+        if (!threadFilter_.isEmpty() && event.thread != threadFilter_)
+        {
+            return false;
+        }
+
+        if (!categoryFilter_.isEmpty() && event.category != categoryFilter_)
+        {
+            return false;
+        }
+
+        if (event.durationMicroseconds < minimumDurationMicroseconds_)
+        {
+            return false;
+        }
+
         if (filterText_.isEmpty())
         {
             return true;

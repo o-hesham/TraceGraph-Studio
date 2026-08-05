@@ -7,8 +7,10 @@
 #include "app/event_inspector_widget.h"
 #include "app/dependency_graph_view.h"
 #include "app/filter_state.h"
+#include "domain/trace_session.h"
 
 #include <optional>
+#include <limits>
 
 #include <QAction>
 #include <QKeySequence>
@@ -28,6 +30,12 @@
 #include <QByteArray>
 #include <QCloseEvent>
 #include <QSettings>
+#include <QHBoxLayout>
+#include <QSpinBox>
+#include <QComboBox>
+#include <QSet>
+#include <QSignalBlocker>
+#include <QStringList>
 
 namespace tracegraph::app
 {
@@ -63,6 +71,36 @@ namespace tracegraph::app
         filterLineEdit_->setPlaceholderText(QStringLiteral("Filter events..."));
         filterLineEdit_->setClearButtonEnabled(true);
 
+        threadFilterComboBox_ = new QComboBox(centralWidget);
+        threadFilterComboBox_->addItem(QStringLiteral("All threads"), QString{});
+
+        auto *threadFilterLabel = new QLabel(QStringLiteral("&Thread:"), centralWidget);
+        threadFilterLabel->setBuddy(threadFilterComboBox_);
+
+        categoryFilterComboBox_ = new QComboBox(centralWidget);
+        categoryFilterComboBox_->addItem(QStringLiteral("All categories"), QString{});
+
+        auto *categoryFilterLabel = new QLabel(QStringLiteral("&Category:"), centralWidget);
+        categoryFilterLabel->setBuddy(categoryFilterComboBox_);
+
+        minimumDurationSpinBox_ = new QSpinBox(centralWidget);
+        minimumDurationSpinBox_->setRange(0, std::numeric_limits<int>::max());
+        minimumDurationSpinBox_->setSpecialValueText(QStringLiteral("Any duration"));
+        minimumDurationSpinBox_->setSuffix(QStringLiteral(" \u00B5s"));
+        minimumDurationSpinBox_->setKeyboardTracking(false);
+
+        auto *minimumDurationLabel = new QLabel(QStringLiteral("&Minimum duration:"), centralWidget);
+        minimumDurationLabel->setBuddy(minimumDurationSpinBox_);
+
+        auto *filterControlsLayout = new QHBoxLayout;
+        filterControlsLayout->addWidget(filterLineEdit_, 1);
+        filterControlsLayout->addWidget(threadFilterLabel);
+        filterControlsLayout->addWidget(threadFilterComboBox_);
+        filterControlsLayout->addWidget(categoryFilterLabel);
+        filterControlsLayout->addWidget(categoryFilterComboBox_);
+        filterControlsLayout->addWidget(minimumDurationLabel);
+        filterControlsLayout->addWidget(minimumDurationSpinBox_);
+
         eventTableView_ = new QTableView(centralWidget);
         eventTableView_->setModel(eventFilterProxyModel_);
         eventTableView_->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -84,7 +122,7 @@ namespace tracegraph::app
         contentSplitter_->setStretchFactor(0, 1);
         contentSplitter_->setStretchFactor(1, 1);
 
-        centralLayout->addWidget(filterLineEdit_);
+        centralLayout->addLayout(filterControlsLayout);
         centralLayout->addWidget(contentSplitter_);
 
         setCentralWidget(centralWidget);
@@ -123,6 +161,8 @@ namespace tracegraph::app
                     }
 
                     selectionController_->clearSelection();
+
+                    rebuildFilterOptions(*session);
 
                     eventTableModel_->setSession(session);
                     timelineView_->setSession(session);
@@ -211,10 +251,107 @@ namespace tracegraph::app
         connect(selectionController_, &SelectionController::selectedEventIdChanged, eventInspectorWidget_, &EventInspectorWidget::setSelectedEventId);
         connect(selectionController_, &SelectionController::selectedEventIdChanged, dependencyGraphView_, &DependencyGraphView::setSelectedEventId);
         connect(dependencyGraphView_, &DependencyGraphView::eventSelected, selectionController_, &SelectionController::selectEvent);
+        connect(minimumDurationSpinBox_, &QSpinBox::valueChanged, filterState_,
+                [this](int value)
+                {
+                    filterState_->setMinimumDurationMicroseconds(static_cast<qint64>(value));
+                });
+        connect(filterState_, &FilterState::minimumDurationMicrosecondsChanged, eventFilterProxyModel_, &EventFilterProxyModel::setMinimumDurationMicroseconds);
+        connect(filterState_, &FilterState::minimumDurationMicrosecondsChanged, timelineView_, &TimelineView::setMinimumDurationMicroseconds);
+        connect(threadFilterComboBox_, &QComboBox::currentIndexChanged, filterState_,
+                [this](int index)
+                {
+                    const QString threadFilter =
+                        threadFilterComboBox_->itemData(index).toString();
+
+                    filterState_->setThreadFilter(threadFilter);
+                });
+        connect(filterState_, &FilterState::threadFilterChanged, eventFilterProxyModel_, &EventFilterProxyModel::setThreadFilter);
+        connect(filterState_, &FilterState::threadFilterChanged, timelineView_, &TimelineView::setThreadFilter);
+        connect(categoryFilterComboBox_, &QComboBox::currentIndexChanged, filterState_,
+                [this](int index)
+                {
+                    const QString categoryFilter =
+                        categoryFilterComboBox_->itemData(index).toString();
+
+                    filterState_->setCategoryFilter(categoryFilter);
+                });
+        connect(filterState_, &FilterState::categoryFilterChanged, eventFilterProxyModel_, &EventFilterProxyModel::setCategoryFilter);
+        connect(filterState_, &FilterState::categoryFilterChanged, timelineView_, &TimelineView::setCategoryFilter);
 
         openAction->setEnabled(true);
 
         restoreWindowSettings();
+    }
+
+    void MainWindow::rebuildFilterOptions(const domain::TraceSession &session)
+    {
+        QSet<QString> uniqueThreadNames;
+        QSet<QString> uniqueCategoryNames;
+
+        for (const auto &event : session.events())
+        {
+            uniqueThreadNames.insert(event.thread);
+            uniqueCategoryNames.insert(event.category);
+        }
+
+        QStringList threadNames;
+        threadNames.reserve(uniqueThreadNames.size());
+
+        for (const auto &threadName : uniqueThreadNames)
+        {
+            threadNames.append(threadName);
+        }
+
+        threadNames.sort(Qt::CaseInsensitive);
+
+        QStringList categoryNames;
+        categoryNames.reserve(uniqueCategoryNames.size());
+
+        for (const QString &categoryName : uniqueCategoryNames)
+        {
+            categoryNames.append(categoryName);
+        }
+
+        categoryNames.sort(Qt::CaseInsensitive);
+
+        // Avoid emitting temporary selection changes while rebuilding the controls.
+        const QSignalBlocker threadSignalBlocker(threadFilterComboBox_);
+        const QSignalBlocker categorySignalBlocker(categoryFilterComboBox_);
+
+        //////////////////////////////////////////////////////////////
+        // Rebuild choices for the thread on which an event executed.
+        //////////////////////////////////////////////////////////////
+        threadFilterComboBox_->clear();
+        threadFilterComboBox_->addItem(QStringLiteral("All threads"), QString{});
+
+        for (const QString &threadName : threadNames)
+        {
+            threadFilterComboBox_->addItem(threadName, threadName);
+        }
+
+        threadFilterComboBox_->setCurrentIndex(0);
+
+        //////////////////////////////////////////////////////////////
+        // Rebuild choices for the type of work represented by an event.
+        //////////////////////////////////////////////////////////////
+        categoryFilterComboBox_->clear();
+        categoryFilterComboBox_->addItem(
+            QStringLiteral("All categories"),
+            QString{});
+
+        for (const QString &categoryName : categoryNames)
+        {
+            categoryFilterComboBox_->addItem(
+                categoryName,
+                categoryName);
+        }
+
+        categoryFilterComboBox_->setCurrentIndex(0);
+
+        // A new trace starts with both structured filters disabled.
+        filterState_->setThreadFilter(QString{});
+        filterState_->setCategoryFilter(QString{});
     }
 
     void MainWindow::restoreWindowSettings()
