@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "timeUnit": "microseconds",
+  "events": [
+    {
+      "id": 1,
+      "name": "Build TraceGraph Studio",
+      "category": "build",
+      "thread": "orchestrator",
+      "start": 0,
+      "duration": 2640
+    },
+    {
+      "id": 2,
+      "name": "Scan Source Tree",
+      "category": "discovery",
+      "thread": "io-worker",
+      "start": 0,
+      "duration": 120,
+      "parentId": 1
+    },
+    {
+      "id": 3,
+      "name": "Load Build Cache",
+      "category": "io",
+      "thread": "io-worker",
+      "start": 120,
+      "duration": 80,
+      "parentId": 1
+    },
+    {
+      "id": 4,
+      "name": "Generate Build Graph",
+      "category": "configuration",
+      "thread": "build-main",
+      "start": 200,
+      "duration": 100,
+      "parentId": 1,
+      "dependsOn": [2, 3]
+    },
+    {
+      "id": 5,
+      "name": "Run Qt MOC",
+      "category": "codegen",
+      "thread": "compiler-2",
+      "start": 320,
+      "duration": 140,
+      "parentId": 1,
+      "dependsOn": [4]
+    },
+    {
+      "id": 6,
+      "name": "Compile Domain Core",
+      "category": "compilation",
+      "thread": "compiler-1",
+      "start": 320,
+      "duration": 500,
+      "parentId": 1,
+      "dependsOn": [4]
+    },
+    {
+      "id": 7,
+      "name": "Compile Trace Reader",
+      "category": "compilation",
+      "thread": "compiler-3",
+      "start": 320,
+      "duration": 440,
+      "parentId": 1,
+      "dependsOn": [4]
+    },
+    {
+      "id": 8,
+      "name": "Bundle Qt Resources",
+      "category": "resources",
+      "thread": "io-worker",
+      "start": 320,
+      "duration": 220,
+      "parentId": 1,
+      "dependsOn": [4]
+    },
+    {
+      "id": 9,
+      "name": "Compile Qt Interface",
+      "category": "compilation",
+      "thread": "compiler-2",
+      "start": 460,
+      "duration": 480,
+      "parentId": 1,
+      "dependsOn": [5]
+    },
+    {
+      "id": 10,
+      "name": "Compile Timeline View",
+      "category": "compilation",
+      "thread": "compiler-1",
+      "start": 820,
+      "duration": 380,
+      "parentId": 1,
+      "dependsOn": [6]
+    },
+    {
+      "id": 11,
+      "name": "Compile Dependency Graph",
+      "category": "compilation",
+      "thread": "compiler-3",
+      "start": 760,
+      "duration": 360,
+      "parentId": 1,
+      "dependsOn": [7]
+    },
+    {
+      "id": 12,
+      "name": "Link Executable",
+      "category": "linking",
+      "thread": "build-main",
+      "start": 1220,
+      "duration": 520,
+      "parentId": 1,
+      "dependsOn": [8, 9, 10, 11]
+    },
+    {
+      "id": 13,
+      "name": "Resolve Symbols",
+      "category": "linking",
+      "thread": "linker",
+      "start": 1220,
+      "duration": 260,
+      "parentId": 12
+    },
+    {
+      "id": 14,
+      "name": "Write Executable",
+      "category": "linking",
+      "thread": "linker",
+      "start": 1480,
+      "duration": 260,
+      "parentId": 12,
+      "dependsOn": [13]
+    },
+    {
+      "id": 15,
+      "name": "Generate Debug Symbols",
+      "category": "packaging",
+      "thread": "io-worker",
+      "start": 1740,
+      "duration": 240,
+      "parentId": 1,
+      "dependsOn": [12]
+    },
+    {
+      "id": 16,
+      "name": "Collect Qt Runtime",
+      "category": "packaging",
+      "thread": "packager",
+      "start": 1740,
+      "duration": 280,
+      "parentId": 1,
+      "dependsOn": [12]
+    },
+    {
+      "id": 17,
+      "name": "Assemble Release Bundle",
+      "category": "packaging",
+      "thread": "packager",
+      "start": 2020,
+      "duration": 260,
+      "parentId": 1,
+      "dependsOn": [15, 16]
+    },
+    {
+      "id": 18,
+      "name": "Run Startup Smoke Test",
+      "category": "testing",
+      "thread": "build-main",
+      "start": 2280,
+      "duration": 200,
+      "parentId": 1,
+      "dependsOn": [17]
+    },
+    {
+      "id": 19,
+      "name": "Write Build Manifest",
+      "category": "packaging",
+      "thread": "io-worker",
+      "start": 2280,
+      "duration": 120,
+      "parentId": 1,
+      "dependsOn": [17]
+    },
+    {
+      "id": 20,
+      "name": "Publish Artifacts",
+      "category": "publishing",
+      "thread": "packager",
+      "start": 2480,
+      "duration": 160,
+      "parentId": 1,
+      "dependsOn": [18, 19]
+    }
+  ]
+}
