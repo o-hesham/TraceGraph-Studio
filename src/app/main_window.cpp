@@ -7,6 +7,7 @@
 #include "app/event_inspector_widget.h"
 #include "app/dependency_graph_view.h"
 #include "app/filter_state.h"
+#include "app/trace_summary_widget.h"
 #include "domain/trace_session.h"
 
 #include <optional>
@@ -136,6 +137,17 @@ namespace tracegraph::app
 
         addDockWidget(Qt::RightDockWidgetArea, eventInspectorDock_);
 
+        traceSummaryDock_ = new QDockWidget(QStringLiteral("Trace Summary"), this);
+        traceSummaryDock_->setObjectName(QStringLiteral("TraceSummaryDock"));
+        traceSummaryDock_->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+
+        traceSummaryWidget_ = new TraceSummaryWidget(traceSummaryDock_);
+        traceSummaryDock_->setWidget(traceSummaryWidget_);
+
+        addDockWidget(Qt::RightDockWidgetArea, traceSummaryDock_);
+        tabifyDockWidget(eventInspectorDock_, traceSummaryDock_);
+        traceSummaryDock_->raise();
+
         dependencyGraphDock_ = new QDockWidget(QStringLiteral("Dependency Graph"), this);
         dependencyGraphDock_->setObjectName(QStringLiteral("DependencyGraphDock"));
         dependencyGraphDock_->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
@@ -146,6 +158,7 @@ namespace tracegraph::app
         addDockWidget(Qt::BottomDockWidgetArea, dependencyGraphDock_);
 
         viewMenu->addAction(eventInspectorDock_->toggleViewAction());
+        viewMenu->addAction(traceSummaryDock_->toggleViewAction());
         viewMenu->addAction(dependencyGraphDock_->toggleViewAction());
 
         sessionStatusLabel_ = new QLabel(QStringLiteral("No trace loaded"), statusBar());
@@ -167,6 +180,7 @@ namespace tracegraph::app
                     eventTableModel_->setSession(session);
                     timelineView_->setSession(session);
                     eventInspectorWidget_->setSession(session);
+                    traceSummaryWidget_->setSession(session);
                     dependencyGraphView_->setSession(session);
 
                     sessionStatusLabel_->setText(QStringLiteral("Loaded %1 events.").arg(session->events().size()));

@@ -27,6 +27,7 @@ namespace tracegraph::app
     class EventInspectorWidget;
     class DependencyGraphView;
     class FilterState;
+    class TraceSummaryWidget;
 
     class MainWindow final : public QMainWindow
     {
@@ -69,6 +70,9 @@ namespace tracegraph::app
 
         QDockWidget *eventInspectorDock_ = nullptr;
         EventInspectorWidget *eventInspectorWidget_ = nullptr;
+
+        QDockWidget *traceSummaryDock_ = nullptr;
+        TraceSummaryWidget *traceSummaryWidget_ = nullptr;
 
         QDockWidget *dependencyGraphDock_ = nullptr;
         DependencyGraphView *dependencyGraphView_ = nullptr;
